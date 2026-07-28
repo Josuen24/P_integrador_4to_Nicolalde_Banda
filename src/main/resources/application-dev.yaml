@@ -14,3 +14,8 @@ spring:
 logging:
   level:
     org.springframework.security: INFO
+
+app:
+  user-contact:
+    stub:
+      phone-by-username: {}
