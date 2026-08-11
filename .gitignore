@@ -1,0 +1,19 @@
+# IDE and local machine configuration
+.idea/
+*.iml
+.vscode/
+local.properties
+**/local.properties
+
+# Gradle build artifacts
+.gradle/
+.kotlin/
+**/.gradle/
+**/.kotlin/
+build/
+**/build/
+out/
+
+# Operating system files
+.DS_Store
+Thumbs.db

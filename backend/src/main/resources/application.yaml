@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: puce-market-api
+  profiles:
+    default: dev
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Cognito es la única autoridad que firma los tokens aceptados por la API.
+          # Se permite cambiarlo por variable de entorno solo al desplegar otro User Pool.
+          issuer-uri: ${COGNITO_ISSUER_URI:https://cognito-idp.us-east-2.amazonaws.com/us-east-2_ybUkTNBad}
+
+server:
+  port: ${SERVER_PORT:8080}
