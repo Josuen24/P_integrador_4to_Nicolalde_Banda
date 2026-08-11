@@ -5,14 +5,11 @@ import ec.edu.puce.pucemarket.security.RestAccessDeniedHandler
 import ec.edu.puce.pucemarket.security.RestAuthenticationEntryPoint
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.web.SecurityFilterChain
-import org.springframework.security.oauth2.jwt.JwtDecoder
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 
 @Configuration
 @EnableWebSecurity
@@ -21,11 +18,6 @@ class SecurityConfig(
     private val authenticationEntryPoint: RestAuthenticationEntryPoint,
     private val accessDeniedHandler: RestAccessDeniedHandler,
 ) {
-    @Bean
-    fun jwtDecoder(
-        @Value("\${spring.security.oauth2.resourceserver.jwt.jwk-set-uri:https://example.invalid/oauth2/jwks}") jwkSetUri: String,
-    ): JwtDecoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build()
-
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain = http
         .csrf { it.disable() }
