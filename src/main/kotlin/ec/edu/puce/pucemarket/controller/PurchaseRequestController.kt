@@ -5,6 +5,7 @@ import ec.edu.puce.pucemarket.dto.purchaserequest.CreatePurchaseRequest
 import ec.edu.puce.pucemarket.dto.purchaserequest.PurchaseRequestResponse
 import ec.edu.puce.pucemarket.security.CurrentUser
 import ec.edu.puce.pucemarket.service.BuyerContactService
+import ec.edu.puce.pucemarket.service.ConversationService
 import ec.edu.puce.pucemarket.service.PurchaseRequestService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController
 class PurchaseRequestController(
     private val purchaseRequestService: PurchaseRequestService,
     private val buyerContactService: BuyerContactService,
+    private val conversationService: ConversationService,
     private val currentUser: CurrentUser,
 ) {
     @PostMapping("/api/products/{productId}/requests")
@@ -34,9 +36,11 @@ class PurchaseRequestController(
         @PathVariable productId: Long,
         @Valid @RequestBody request: CreatePurchaseRequest,
         @AuthenticationPrincipal jwt: Jwt,
-    ): ResponseEntity<PurchaseRequestResponse> = ResponseEntity
-        .status(HttpStatus.CREATED)
-        .body(purchaseRequestService.createRequest(productId, request, currentUser.username(jwt)))
+    ): ResponseEntity<PurchaseRequestResponse> {
+        val response = purchaseRequestService.createRequest(productId, request, currentUser.username(jwt))
+        conversationService.createForPurchaseRequest(response.id)
+        return ResponseEntity.status(HttpStatus.CREATED).body(response)
+    }
 
     @GetMapping("/api/purchase-requests/me")
     @PreAuthorize("hasRole('BUYER')")
@@ -57,8 +61,11 @@ class PurchaseRequestController(
 
     @PatchMapping("/api/purchase-requests/{requestId}/accept")
     @PreAuthorize("hasRole('SELLER')")
-    fun acceptRequest(@PathVariable requestId: Long, @AuthenticationPrincipal jwt: Jwt): PurchaseRequestResponse =
-        purchaseRequestService.acceptRequest(requestId, currentUser.username(jwt))
+    fun acceptRequest(@PathVariable requestId: Long, @AuthenticationPrincipal jwt: Jwt): PurchaseRequestResponse {
+        val response = purchaseRequestService.acceptRequest(requestId, currentUser.username(jwt))
+        conversationService.createForPurchaseRequest(requestId)
+        return response
+    }
 
     @PatchMapping("/api/purchase-requests/{requestId}/reject")
     @PreAuthorize("hasRole('SELLER')")
