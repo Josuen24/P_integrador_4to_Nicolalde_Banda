@@ -60,3 +60,11 @@ PUCE Market permite a miembros autenticados de la comunidad universitaria public
 ## Definition of Done
 
 Una historia se considera terminada cuando tiene criterios de aceptación comprobables, prueba relevante, código revisado en merge request, migración si modifica datos, documentación actualizada y evidencia de demo.
+
+## Decisión de priorización
+
+La priorización Must/Should/Could del backlog se formaliza en
+[`ADR-002 - Priorización del MVP`](../adr/ADR-002-priorizacion-mvp.md). El
+equipo priorizó catálogo, autenticación, publicación y solicitudes de compra
+porque constituyen el flujo mínimo que resuelve el problema; chat interno,
+pagos, notificaciones e imágenes se difieren como evolución posterior.
