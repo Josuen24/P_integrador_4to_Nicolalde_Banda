@@ -1,44 +1,43 @@
-# Infraestructura Docker y escalamiento
+# Computación en la Nube - Arquitectura e Infraestructura
 
-## Arquitectura actual
+## 1. Análisis de Escalamiento (Vertical vs. Horizontal)
+
+| Criterio | Escalamiento Vertical (Scale-Up) | Escalamiento Horizontal (Scale-Out) |
+|---|---|---|
+| **Definición** | Consiste en incrementar los recursos de hardware (CPU, memoria RAM, almacenamiento) del servidor o contenedor existente. | Consiste en añadir más instancias o réplicas del servicio/contenedor trabajando en paralelo detrás de un balanceador de carga. |
+| **Ventajas** | - Configuración sencilla e inmediata.<br>- No requiere cambios en la arquitectura de la aplicación ni en el código. | - Alta disponibilidad y tolerancia a fallos.<br>- Flexibilidad para aumentar o reducir instancias según la demanda en tiempo real. |
+| **Desventajas** | - Existe un límite físico de hardware.<br>- Puede requerir tiempo de inactividad (*downtime*) durante la ampliación. | - Incrementa la complejidad en la capa de red y en la gestión de sesiones/estado. |
+| **Aplicación en PUCE Market** | **Base de Datos (PostgreSQL):** Inicialmente escala verticalmente ajustando el tamaño de la instancia en la nube (ej. de t3.small a t3.medium) para garantizar integridad. | **API Backend (Spring Boot):** Diseñada de forma *stateless* (sin estado local) mediante tokens JWT, lo que permite replicar contenedores en Docker/ECS según el tráfico. |
+
+---
+
+## 2. Arquitectura de Despliegue en la Nube / Contenedores
+
+La aplicación adopta una **arquitectura en capas virtualizada** basada en contenedores Docker y servicios administrados de nube:
 
 ```text
-Android (emulador o dispositivo)
-        | HTTP + Bearer JWT
-Spring Boot API (contenedor o IntelliJ)
-        | JDBC
-PostgreSQL 16 (contenedor Docker, volumen persistente)
-        |
-AWS Cognito User Pool (JWT, grupos BUYER/SELLER)
-```
-
-`docker-compose.yml` define PostgreSQL, healthcheck, volumen persistente y una imagen de API. Flyway aplica las migraciones al iniciar. Los perfiles `dev` y `docker` permiten ejecutar la API desde IntelliJ o completamente contenida.
-
-## Escalamiento vertical y horizontal
-
-| Tipo | Aplicación en PUCE Market | Ventaja | Desventaja |
-|---|---|---|---|
-| Vertical | Aumentar CPU/RAM de la VM de PostgreSQL o API. | Configuración simple, útil para una primera etapa. | Tiene límite físico, mayor costo por VM y punto único de falla. |
-| Horizontal | Replicar la API Spring Boot detrás de un balanceador. | Atiende más solicitudes y mejora disponibilidad. | Requiere balanceador, observabilidad y sesiones sin estado. |
-
-La API es apta para escalar horizontalmente porque la sesión se resuelve con JWT Cognito y el estado de negocio se persiste en PostgreSQL. Para una etapa futura, PostgreSQL puede usar réplica administrada y backups; las notificaciones no son parte del alcance.
-
-## Procedimiento de ejecución reproducible
-
-```powershell
-cd C:\Users\DETPC\OneDrive\Desktop\pucemarketapi
-docker compose up -d postgres
-```
-
-Luego se ejecuta `PuceMarketApplicationKt` con el perfil `dev` desde IntelliJ. Para contener todo:
-
-```powershell
-docker compose up -d --build
-```
-
-## Evidencias para demo
-
-1. Mostrar Docker Desktop o `docker compose ps` con PostgreSQL saludable.
-2. Mostrar Flyway creando `categories`, `products`, `purchase_requests`, `conversations` y `messages`.
-3. Probar Android -> API -> PostgreSQL creando producto, oferta y mensaje.
-4. Explicar que JWT elimina afinidad de sesión y permite replicar la API.
+                               ┌───────────────────────────┐
+                               │   App Móvil Android       │
+                               └─────────────┬─────────────┘
+                                             │ (HTTPS / REST API)
+                                             ▼
+                               ┌───────────────────────────┐
+                               │   Nginx / Load Balancer   │
+                               └─────────────┬─────────────┘
+                                             │
+                       ┌─────────────────────┴─────────────────────┐
+                       │                                           │
+                       ▼                                           ▼
+         ┌───────────────────────────┐               ┌───────────────────────────┐
+         │ API Spring Boot (Inst 1)  │               │ API Spring Boot (Inst 2)  │
+         │   (Contenedor Docker)     │               │   (Contenedor Docker)     │
+         └─────────────┬─────────────┘               └─────────────┬─────────────┘
+                       │                                           │
+                       │ ──► [ AWS Cognito (Validación JWT) ] ◄───┤
+                       │                                           │
+                       └─────────────────────┬─────────────────────┘
+                                             │ (SQL)
+                                             ▼
+                               ┌───────────────────────────┐
+                               │   PostgreSQL (RDS/Docker) │
+                               └───────────────────────────┘
