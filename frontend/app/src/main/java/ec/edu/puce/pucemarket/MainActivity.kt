@@ -33,10 +33,13 @@ import ec.edu.puce.pucemarket.services.RetrofitClient
 import ec.edu.puce.pucemarket.services.TokenStore
 import ec.edu.puce.pucemarket.viewmodels.*
 
-private val PucemBlue = Color(0xFF133B67)
-private val PucemGold = Color(0xFFFFB71B)
-private val SoftBlue = Color(0xFFF2F7FC)
-private val WhatsappGreen = Color(0xFF25D366)
+private val PucemBlue = Color(0xFF003B70)
+private val PucemBlueLight = Color(0xFFEAF3FB)
+private val PucemGold = Color(0xFFF2B233)
+private val PucemInk = Color(0xFF172B3A)
+private val SoftBlue = Color(0xFFF5F9FD)
+private val PucemSurface = Color(0xFFFFFFFF)
+private val WhatsappGreen = Color(0xFF1FAF5A)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,7 +47,24 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val store = TokenStore(this)
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme(primary = PucemBlue, secondary = PucemGold, surface = Color.White)) {
+            MaterialTheme(
+                colorScheme = lightColorScheme(
+                    primary = PucemBlue,
+                    onPrimary = Color.White,
+                    primaryContainer = PucemBlueLight,
+                    onPrimaryContainer = PucemBlue,
+                    secondary = PucemGold,
+                    onSecondary = PucemInk,
+                    secondaryContainer = Color(0xFFFFF0C9),
+                    background = SoftBlue,
+                    onBackground = PucemInk,
+                    surface = PucemSurface,
+                    onSurface = PucemInk,
+                    surfaceVariant = Color(0xFFE8F0F7),
+                    onSurfaceVariant = Color(0xFF405564),
+                    error = Color(0xFFB3261E),
+                ),
+            ) {
                 MarketApp(store)
             }
         }
@@ -97,12 +117,12 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable private fun MarketNavigationBar(page: String, loggedIn: Boolean, sellerLoggedIn: Boolean, buyerLoggedIn: Boolean, onHome: () -> Unit, onPublish: () -> Unit, onSales: () -> Unit, onRequests: () -> Unit, onSession: () -> Unit) {
-    NavigationBar {
-        NavigationBarItem(selected = page == "catalog" || page == "detail", onClick = onHome, icon = { Text("⌂") }, label = { Text("Inicio") })
-        if (sellerLoggedIn) NavigationBarItem(selected = page == "publish", onClick = onPublish, icon = { Text("+") }, label = { Text("Publicar") })
-        if (sellerLoggedIn) NavigationBarItem(selected = page == "sales", onClick = onSales, icon = { Text("▣") }, label = { Text("Mis ventas") })
-        if (buyerLoggedIn) NavigationBarItem(selected = page == "requests", onClick = onRequests, icon = { Text("◌") }, label = { Text("Mis compras") })
-        NavigationBarItem(selected = page == "login", onClick = onSession, icon = { Text("◉") }, label = { Text(if (loggedIn) "Sesión" else "Ingresar") })
+    NavigationBar(containerColor = PucemSurface, tonalElevation = 8.dp) {
+        NavigationBarItem(selected = page == "catalog" || page == "detail", onClick = onHome, icon = { Text("⌂") }, label = { Text("Inicio") }, colors = NavigationBarItemDefaults.colors(indicatorColor = Color(0xFFDCEBFA), selectedIconColor = PucemBlue, selectedTextColor = PucemBlue))
+        if (sellerLoggedIn) NavigationBarItem(selected = page == "publish", onClick = onPublish, icon = { Text("+") }, label = { Text("Publicar") }, colors = NavigationBarItemDefaults.colors(indicatorColor = Color(0xFFFFF0C9), selectedIconColor = PucemBlue, selectedTextColor = PucemBlue))
+        if (sellerLoggedIn) NavigationBarItem(selected = page == "sales", onClick = onSales, icon = { Text("▣") }, label = { Text("Mis ventas") }, colors = NavigationBarItemDefaults.colors(indicatorColor = Color(0xFFDCEBFA), selectedIconColor = PucemBlue, selectedTextColor = PucemBlue))
+        if (buyerLoggedIn) NavigationBarItem(selected = page == "requests", onClick = onRequests, icon = { Text("◌") }, label = { Text("Mis compras") }, colors = NavigationBarItemDefaults.colors(indicatorColor = Color(0xFFDCEBFA), selectedIconColor = PucemBlue, selectedTextColor = PucemBlue))
+        NavigationBarItem(selected = page == "login", onClick = onSession, icon = { Text("◉") }, label = { Text(if (loggedIn) "Sesión" else "Ingresar") }, colors = NavigationBarItemDefaults.colors(indicatorColor = Color(0xFFDCEBFA), selectedIconColor = PucemBlue, selectedTextColor = PucemBlue))
     }
 }
 @OptIn(ExperimentalMaterial3Api::class)
@@ -116,8 +136,9 @@ class MainActivity : ComponentActivity() {
         containerColor = SoftBlue,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("PUCE Market", fontWeight = FontWeight.Bold); Text("Compra y vende en tu comunidad", style = MaterialTheme.typography.labelSmall) } },
-                actions = { TextButton(onClick = when { sellerLoggedIn -> onPublish; buyerLoggedIn -> onRequests; else -> onLogin }) { Text(when { sellerLoggedIn -> "Vender"; buyerLoggedIn -> "Mis compras"; else -> "Ingresar" }, fontWeight = FontWeight.Bold) } }
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = PucemBlue, titleContentColor = Color.White, actionIconContentColor = Color.White),
+                title = { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("PUCE Market", fontWeight = FontWeight.Bold); Text("Comunidad universitaria", style = MaterialTheme.typography.labelSmall, color = Color(0xFFD9E9F8)) } },
+                actions = { TextButton(onClick = when { sellerLoggedIn -> onPublish; buyerLoggedIn -> onRequests; else -> onLogin }) { Text(when { sellerLoggedIn -> "Vender"; buyerLoggedIn -> "Mis compras"; else -> "Ingresar" }, fontWeight = FontWeight.Bold, color = PucemGold) } }
             )
         }
     ) { padding ->
@@ -134,27 +155,33 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable private fun HeroCard(count: Int, loggedIn: Boolean, sellerLoggedIn: Boolean, buyerLoggedIn: Boolean, onLogin: () -> Unit, onPublish: () -> Unit, onRequests: () -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = PucemBlue), shape = RoundedCornerShape(24.dp)) {
-        Column(Modifier.padding(22.dp)) {
+    Card(colors = CardDefaults.cardColors(containerColor = PucemBlue), shape = RoundedCornerShape(28.dp), elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)) {
+        Column(Modifier.padding(24.dp)) {
+            AssistChip(onClick = {}, label = { Text("Comunidad PUCE", color = Color.White) }, colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFF1B568D)))
+            Spacer(Modifier.height(10.dp))
             Text("Todo lo que necesitas, cerca de ti", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(6.dp)); Text("Explora $count publicaciones de la comunidad PUCE.", color = Color(0xFFD8E8F8))
-            Spacer(Modifier.height(18.dp)); Button(onClick = when { sellerLoggedIn -> onPublish; buyerLoggedIn -> onRequests; else -> onLogin }, colors = ButtonDefaults.buttonColors(containerColor = PucemGold, contentColor = Color(0xFF2D2100))) { Text(when { sellerLoggedIn -> "Publicar un producto"; buyerLoggedIn -> "Ver mis solicitudes"; else -> "Iniciar sesión" }, fontWeight = FontWeight.Bold) }
+            Spacer(Modifier.height(6.dp))
+            Text("Explora $count publicaciones verificadas de estudiantes y miembros de la comunidad.", color = Color(0xFFD9E9F8))
+            Spacer(Modifier.height(18.dp))
+            Button(onClick = when { sellerLoggedIn -> onPublish; buyerLoggedIn -> onRequests; else -> onLogin }, colors = ButtonDefaults.buttonColors(containerColor = PucemGold, contentColor = PucemInk), shape = RoundedCornerShape(14.dp)) {
+                Text(when { sellerLoggedIn -> "Publicar un producto"; buyerLoggedIn -> "Ver mis solicitudes"; else -> "Iniciar sesión" }, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
 
 @Composable private fun ProductCard(product: Product, click: (Product) -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable { click(product) }, shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(64.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFFE3EEF9)), contentAlignment = Alignment.Center) { Text("🛍", style = MaterialTheme.typography.headlineMedium) }
+    Card(modifier = Modifier.fillMaxWidth().clickable { click(product) }, colors = CardDefaults.cardColors(containerColor = PucemSurface), shape = RoundedCornerShape(22.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(64.dp).clip(RoundedCornerShape(18.dp)).background(PucemBlueLight), contentAlignment = Alignment.Center) { Text("🛍", style = MaterialTheme.typography.headlineMedium) }
             Spacer(Modifier.width(14.dp)); Column(Modifier.weight(1f)) { Text(product.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold); Spacer(Modifier.height(3.dp)); Text(product.category.name, style = MaterialTheme.typography.labelMedium, color = PucemBlue); Text(product.description, maxLines = 1, style = MaterialTheme.typography.bodySmall, color = Color.Gray) }
-            Column(horizontalAlignment = Alignment.End) { Text("$ ${"%.2f".format(product.price)}", color = PucemBlue, fontWeight = FontWeight.Bold); AssistChip(onClick = { click(product) }, label = { Text("Ver") }) }
+            Column(horizontalAlignment = Alignment.End) { Text("$ ${"%.2f".format(product.price)}", color = PucemBlue, fontWeight = FontWeight.Bold); AssistChip(onClick = { click(product) }, label = { Text("Ver detalle") }, colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFFFFF0C9))) }
         }
     }
 }
 
 @Composable private fun EmptyCatalog() {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
+    Card(colors = CardDefaults.cardColors(containerColor = PucemSurface), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
         Column(Modifier.padding(30.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text("📦", style = MaterialTheme.typography.displaySmall); Text("Aún no hay productos", fontWeight = FontWeight.Bold); Text("Vuelve pronto o publica el primero.", color = Color.Gray) }
     }
 }
@@ -179,9 +206,9 @@ fun openWhatsAppSeller(context: Context, productName: String) {
 
     Column(Modifier.fillMaxSize().background(SoftBlue).verticalScroll(rememberScrollState()).padding(20.dp)) {
         TextButton(onClick = back) { Text("← Volver al catálogo") }
-        Card(shape = RoundedCornerShape(24.dp)) {
+        Card(colors = CardDefaults.cardColors(containerColor = PucemSurface), shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)) {
             Column(Modifier.padding(22.dp)) {
-                Box(Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFFE3EEF9)), contentAlignment = Alignment.Center) { Text("🛍", style = MaterialTheme.typography.displayLarge) }
+                Box(Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(18.dp)).background(PucemBlueLight), contentAlignment = Alignment.Center) { Text("🛍", style = MaterialTheme.typography.displayLarge) }
                 Spacer(Modifier.height(18.dp))
                 AssistChip(onClick = {}, label = { Text(product.category.name) })
                 Text(product.name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -311,7 +338,7 @@ fun openWhatsAppSeller(context: Context, productName: String) {
         Text("Publica lo que ya no usas", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text("Tu publicación será visible para toda la comunidad PUCE.", color = Color.Gray)
         Spacer(Modifier.height(20.dp))
-        Card(shape = RoundedCornerShape(24.dp)) {
+        Card(colors = CardDefaults.cardColors(containerColor = PucemSurface), shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(name, { name = it }, label = { Text("Nombre del producto") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(description, { description = it }, label = { Text("Descripción") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
