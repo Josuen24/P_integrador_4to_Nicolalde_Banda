@@ -19,6 +19,12 @@ class MarketViewModel(private val api: ApiService) : ViewModel() {
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
+    private val _myProducts = MutableStateFlow<List<Product>>(emptyList())
+    val myProducts: StateFlow<List<Product>> = _myProducts.asStateFlow()
+    private val _receivedRequests = MutableStateFlow<List<PurchaseRequest>>(emptyList())
+    val receivedRequests: StateFlow<List<PurchaseRequest>> = _receivedRequests.asStateFlow()
+    private val _myRequests = MutableStateFlow<List<PurchaseRequest>>(emptyList())
+    val myRequests: StateFlow<List<PurchaseRequest>> = _myRequests.asStateFlow()
 
     init { refresh() }
     fun refresh() = run { _loading.value = true; _error.value = null; viewModelScope.launch {
@@ -38,15 +44,44 @@ class MarketViewModel(private val api: ApiService) : ViewModel() {
     fun request(productId: Long, payload: CreateRequestPayload, done: (String?) -> Unit) = viewModelScope.launch {
         try { api.createRequest(productId, payload); done(null) } catch (e: Exception) { done(e.message ?: "No se pudo enviar la solicitud") }
     }
+    fun loadBuyerRequests(done: (String?) -> Unit = {}) = viewModelScope.launch {
+        _loading.value = true
+        try {
+            _myRequests.value = api.myRequests()
+            done(null)
+        } catch (e: Exception) {
+            done("No se pudieron cargar tus solicitudes. Inicia sesión como comprador.")
+        } finally { _loading.value = false }
+    }
+    fun loadSellerDashboard(done: (String?) -> Unit = {}) = viewModelScope.launch {
+        _loading.value = true
+        try {
+            val sellerProducts = api.myProducts()
+            _myProducts.value = sellerProducts
+            _receivedRequests.value = sellerProducts.flatMap { api.receivedRequests(it.id) }
+            done(null)
+        } catch (e: Exception) {
+            done("No se pudieron cargar tus ofertas. Inicia sesión como vendedor.")
+        } finally { _loading.value = false }
+    }
+
+    fun respondToRequest(requestId: Long, accept: Boolean, done: (String?) -> Unit) = viewModelScope.launch {
+        try {
+            if (accept) api.acceptRequest(requestId) else api.rejectRequest(requestId)
+            loadSellerDashboard(done)
+        } catch (e: Exception) { done("No se pudo actualizar la oferta.") }
+    }
     fun validateAndSaveSession(token: String, tokenStore: TokenStore, done: (String?) -> Unit) = viewModelScope.launch {
         _loading.value = true
         try {
-            tokenStore.save(token)
-            api.myProducts()
+            // El interceptor obtiene el JWT desde TokenStore, por eso se guarda antes de validar.
+            tokenStore.save(token, emptyList())
+            val session = api.session()
+            tokenStore.save(token, session.roles)
             done(null)
         } catch (e: Exception) {
             tokenStore.clear()
-            done("No se pudo validar la sesión. Usa el access_token completo de Cognito.")
+            done("No se pudo validar la sesión. Verifica que pegaste el access_token completo de Cognito.")
         } finally { _loading.value = false }
     }
 }

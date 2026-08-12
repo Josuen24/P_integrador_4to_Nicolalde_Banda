@@ -4,6 +4,7 @@ import ec.edu.puce.pucemarket.models.*
 import retrofit2.http.*
 
 interface ApiService {
+    @GET("api/session") suspend fun session(): SessionResponse
     @GET("api/categories") suspend fun categories(): List<Category>
     @GET("api/products") suspend fun products(): List<Product>
     @GET("api/products/search") suspend fun search(@Query("categoryId") categoryId: Long?, @Query("query") query: String?): List<Product>

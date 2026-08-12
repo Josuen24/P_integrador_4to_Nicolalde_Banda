@@ -33,10 +33,13 @@ import ec.edu.puce.pucemarket.services.RetrofitClient
 import ec.edu.puce.pucemarket.services.TokenStore
 import ec.edu.puce.pucemarket.viewmodels.*
 
-private val PucemBlue = Color(0xFF133B67)
-private val PucemGold = Color(0xFFFFB71B)
-private val SoftBlue = Color(0xFFF2F7FC)
-private val WhatsappGreen = Color(0xFF25D366)
+private val PucemBlue = Color(0xFF003B70)
+private val PucemBlueLight = Color(0xFFEAF3FB)
+private val PucemGold = Color(0xFFF2B233)
+private val PucemInk = Color(0xFF172B3A)
+private val SoftBlue = Color(0xFFF5F9FD)
+private val PucemSurface = Color(0xFFFFFFFF)
+private val WhatsappGreen = Color(0xFF1FAF5A)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,7 +47,24 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val store = TokenStore(this)
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme(primary = PucemBlue, secondary = PucemGold, surface = Color.White)) {
+            MaterialTheme(
+                colorScheme = lightColorScheme(
+                    primary = PucemBlue,
+                    onPrimary = Color.White,
+                    primaryContainer = PucemBlueLight,
+                    onPrimaryContainer = PucemBlue,
+                    secondary = PucemGold,
+                    onSecondary = PucemInk,
+                    secondaryContainer = Color(0xFFFFF0C9),
+                    background = SoftBlue,
+                    onBackground = PucemInk,
+                    surface = PucemSurface,
+                    onSurface = PucemInk,
+                    surfaceVariant = Color(0xFFE8F0F7),
+                    onSurfaceVariant = Color(0xFF405564),
+                    error = Color(0xFFB3261E),
+                ),
+            ) {
                 MarketApp(store)
             }
         }
@@ -56,7 +76,10 @@ class MainActivity : ComponentActivity() {
     var page by remember { mutableStateOf("catalog") }
     var selected by remember { mutableStateOf<Product?>(null) }
     var sessionToken by remember { mutableStateOf(store.token()) }
+    var sessionRoles by remember { mutableStateOf(store.roles()) }
     val loggedIn = !sessionToken.isNullOrBlank()
+    val sellerLoggedIn = loggedIn && "SELLER" in sessionRoles
+    val buyerLoggedIn = loggedIn && "BUYER" in sessionRoles
 
     Scaffold(
         containerColor = SoftBlue,
@@ -64,33 +87,46 @@ class MainActivity : ComponentActivity() {
             MarketNavigationBar(
                 page = page,
                 loggedIn = loggedIn,
+                sellerLoggedIn = sellerLoggedIn,
+                buyerLoggedIn = buyerLoggedIn,
                 onHome = { page = "catalog" },
-                onPublish = { page = if (loggedIn) "publish" else "login" },
+                onPublish = { page = if (sellerLoggedIn) "publish" else "login" },
+                onSales = { page = if (sellerLoggedIn) "sales" else "login" },
+                onRequests = { page = if (buyerLoggedIn) "requests" else "login" },
                 onSession = { page = "login" }
             )
         }
     ) { contentPadding ->
         Box(Modifier.padding(contentPadding)) {
             when (page) {
-                "login" -> LoginScreen(store, vm, back = { page = "catalog" }) { sessionToken = store.token(); page = "catalog" }
-                "publish" -> PublishScreen(vm, back = { page = "catalog" }) { page = "catalog" }
+                "login" -> LoginScreen(
+                    store = store,
+                    vm = vm,
+                    back = { page = "catalog" },
+                    done = { sessionToken = store.token(); sessionRoles = store.roles(); page = "catalog" },
+                    onLogout = { sessionToken = null; sessionRoles = emptySet(); page = "catalog" },
+                )
+                "publish" -> if (sellerLoggedIn) PublishScreen(vm, back = { page = "catalog" }) { page = "catalog" } else LaunchedEffect(Unit) { page = "catalog" }
+                "sales" -> if (sellerLoggedIn) SellerDashboardScreen(vm, back = { page = "catalog" }) else LaunchedEffect(Unit) { page = "catalog" }
+                "requests" -> if (buyerLoggedIn) BuyerRequestsScreen(vm, back = { page = "catalog" }) else LaunchedEffect(Unit) { page = "catalog" }
                 "detail" -> selected?.let { DetailScreen(it, vm) { page = "catalog" } }
-                else -> CatalogScreen(vm, loggedIn, { page = "login" }, { page = "publish" }) { selected = it; page = "detail" }
+                else -> CatalogScreen(vm, loggedIn, sellerLoggedIn, buyerLoggedIn, { page = "login" }, { page = "publish" }, { page = "requests" }) { selected = it; page = "detail" }
             }
         }
     }
 }
 
-@Composable private fun MarketNavigationBar(page: String, loggedIn: Boolean, onHome: () -> Unit, onPublish: () -> Unit, onSession: () -> Unit) {
-    NavigationBar {
-        NavigationBarItem(selected = page == "catalog" || page == "detail", onClick = onHome, icon = { Text("⌂") }, label = { Text("Inicio") })
-        NavigationBarItem(selected = page == "publish", onClick = onPublish, icon = { Text("+") }, label = { Text("Publicar") })
-        NavigationBarItem(selected = page == "login", onClick = onSession, icon = { Text("◉") }, label = { Text(if (loggedIn) "Sesión" else "Ingresar") })
+@Composable private fun MarketNavigationBar(page: String, loggedIn: Boolean, sellerLoggedIn: Boolean, buyerLoggedIn: Boolean, onHome: () -> Unit, onPublish: () -> Unit, onSales: () -> Unit, onRequests: () -> Unit, onSession: () -> Unit) {
+    NavigationBar(containerColor = PucemSurface, tonalElevation = 8.dp) {
+        NavigationBarItem(selected = page == "catalog" || page == "detail", onClick = onHome, icon = { Text("⌂") }, label = { Text("Inicio") }, colors = NavigationBarItemDefaults.colors(indicatorColor = Color(0xFFDCEBFA), selectedIconColor = PucemBlue, selectedTextColor = PucemBlue))
+        if (sellerLoggedIn) NavigationBarItem(selected = page == "publish", onClick = onPublish, icon = { Text("+") }, label = { Text("Publicar") }, colors = NavigationBarItemDefaults.colors(indicatorColor = Color(0xFFFFF0C9), selectedIconColor = PucemBlue, selectedTextColor = PucemBlue))
+        if (sellerLoggedIn) NavigationBarItem(selected = page == "sales", onClick = onSales, icon = { Text("▣") }, label = { Text("Mis ventas") }, colors = NavigationBarItemDefaults.colors(indicatorColor = Color(0xFFDCEBFA), selectedIconColor = PucemBlue, selectedTextColor = PucemBlue))
+        if (buyerLoggedIn) NavigationBarItem(selected = page == "requests", onClick = onRequests, icon = { Text("◌") }, label = { Text("Mis compras") }, colors = NavigationBarItemDefaults.colors(indicatorColor = Color(0xFFDCEBFA), selectedIconColor = PucemBlue, selectedTextColor = PucemBlue))
+        NavigationBarItem(selected = page == "login", onClick = onSession, icon = { Text("◉") }, label = { Text(if (loggedIn) "Sesión" else "Ingresar") }, colors = NavigationBarItemDefaults.colors(indicatorColor = Color(0xFFDCEBFA), selectedIconColor = PucemBlue, selectedTextColor = PucemBlue))
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable fun CatalogScreen(vm: MarketViewModel, loggedIn: Boolean, onLogin: () -> Unit, onPublish: () -> Unit, onProduct: (Product) -> Unit) {
+@Composable fun CatalogScreen(vm: MarketViewModel, loggedIn: Boolean, sellerLoggedIn: Boolean, buyerLoggedIn: Boolean, onLogin: () -> Unit, onPublish: () -> Unit, onRequests: () -> Unit, onProduct: (Product) -> Unit) {
     val products by vm.products.collectAsStateWithLifecycle()
     val loading by vm.loading.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
@@ -100,13 +136,14 @@ class MainActivity : ComponentActivity() {
         containerColor = SoftBlue,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("PUCE Market", fontWeight = FontWeight.Bold); Text("Compra y vende en tu comunidad", style = MaterialTheme.typography.labelSmall) } },
-                actions = { TextButton(onClick = if (loggedIn) onPublish else onLogin) { Text(if (loggedIn) "Vender" else "Ingresar", fontWeight = FontWeight.Bold) } }
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = PucemBlue, titleContentColor = Color.White, actionIconContentColor = Color.White),
+                title = { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("PUCE Market", fontWeight = FontWeight.Bold); Text("Comunidad universitaria", style = MaterialTheme.typography.labelSmall, color = Color(0xFFD9E9F8)) } },
+                actions = { TextButton(onClick = when { sellerLoggedIn -> onPublish; buyerLoggedIn -> onRequests; else -> onLogin }) { Text(when { sellerLoggedIn -> "Vender"; buyerLoggedIn -> "Mis compras"; else -> "Ingresar" }, fontWeight = FontWeight.Bold, color = PucemGold) } }
             )
         }
     ) { padding ->
         LazyColumn(contentPadding = PaddingValues(16.dp), modifier = Modifier.padding(padding), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { HeroCard(products.size, loggedIn, onLogin, onPublish) }
+            item { HeroCard(products.size, loggedIn, sellerLoggedIn, buyerLoggedIn, onLogin, onPublish, onRequests) }
             item { OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text("¿Qué estás buscando?") }, placeholder = { Text("Ej.: Calculadora, libros, audífonos") }, leadingIcon = { Text("⌕", style = MaterialTheme.typography.headlineSmall) }, trailingIcon = { TextButton(onClick = { vm.search(query) }) { Text("Buscar") } }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) }
             if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             error?.let { message -> item { AssistChip(onClick = vm::refresh, label = { Text("$message · Reintentar") }, colors = AssistChipDefaults.assistChipColors(containerColor = MaterialTheme.colorScheme.errorContainer)) } }
@@ -117,28 +154,34 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable private fun HeroCard(count: Int, loggedIn: Boolean, onLogin: () -> Unit, onPublish: () -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = PucemBlue), shape = RoundedCornerShape(24.dp)) {
-        Column(Modifier.padding(22.dp)) {
+@Composable private fun HeroCard(count: Int, loggedIn: Boolean, sellerLoggedIn: Boolean, buyerLoggedIn: Boolean, onLogin: () -> Unit, onPublish: () -> Unit, onRequests: () -> Unit) {
+    Card(colors = CardDefaults.cardColors(containerColor = PucemBlue), shape = RoundedCornerShape(28.dp), elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)) {
+        Column(Modifier.padding(24.dp)) {
+            AssistChip(onClick = {}, label = { Text("Comunidad PUCE", color = Color.White) }, colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFF1B568D)))
+            Spacer(Modifier.height(10.dp))
             Text("Todo lo que necesitas, cerca de ti", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(6.dp)); Text("Explora $count publicaciones de la comunidad PUCE.", color = Color(0xFFD8E8F8))
-            Spacer(Modifier.height(18.dp)); Button(onClick = if (loggedIn) onPublish else onLogin, colors = ButtonDefaults.buttonColors(containerColor = PucemGold, contentColor = Color(0xFF2D2100))) { Text(if (loggedIn) "Publicar un producto" else "Iniciar sesión", fontWeight = FontWeight.Bold) }
+            Spacer(Modifier.height(6.dp))
+            Text("Explora $count publicaciones verificadas de estudiantes y miembros de la comunidad.", color = Color(0xFFD9E9F8))
+            Spacer(Modifier.height(18.dp))
+            Button(onClick = when { sellerLoggedIn -> onPublish; buyerLoggedIn -> onRequests; else -> onLogin }, colors = ButtonDefaults.buttonColors(containerColor = PucemGold, contentColor = PucemInk), shape = RoundedCornerShape(14.dp)) {
+                Text(when { sellerLoggedIn -> "Publicar un producto"; buyerLoggedIn -> "Ver mis solicitudes"; else -> "Iniciar sesión" }, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
 
 @Composable private fun ProductCard(product: Product, click: (Product) -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable { click(product) }, shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(64.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFFE3EEF9)), contentAlignment = Alignment.Center) { Text("🛍", style = MaterialTheme.typography.headlineMedium) }
+    Card(modifier = Modifier.fillMaxWidth().clickable { click(product) }, colors = CardDefaults.cardColors(containerColor = PucemSurface), shape = RoundedCornerShape(22.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(64.dp).clip(RoundedCornerShape(18.dp)).background(PucemBlueLight), contentAlignment = Alignment.Center) { Text("🛍", style = MaterialTheme.typography.headlineMedium) }
             Spacer(Modifier.width(14.dp)); Column(Modifier.weight(1f)) { Text(product.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold); Spacer(Modifier.height(3.dp)); Text(product.category.name, style = MaterialTheme.typography.labelMedium, color = PucemBlue); Text(product.description, maxLines = 1, style = MaterialTheme.typography.bodySmall, color = Color.Gray) }
-            Column(horizontalAlignment = Alignment.End) { Text("$ ${"%.2f".format(product.price)}", color = PucemBlue, fontWeight = FontWeight.Bold); AssistChip(onClick = { click(product) }, label = { Text("Ver") }) }
+            Column(horizontalAlignment = Alignment.End) { Text("$ ${"%.2f".format(product.price)}", color = PucemBlue, fontWeight = FontWeight.Bold); AssistChip(onClick = { click(product) }, label = { Text("Ver detalle") }, colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFFFFF0C9))) }
         }
     }
 }
 
 @Composable private fun EmptyCatalog() {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
+    Card(colors = CardDefaults.cardColors(containerColor = PucemSurface), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
         Column(Modifier.padding(30.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text("📦", style = MaterialTheme.typography.displaySmall); Text("Aún no hay productos", fontWeight = FontWeight.Bold); Text("Vuelve pronto o publica el primero.", color = Color.Gray) }
     }
 }
@@ -163,9 +206,9 @@ fun openWhatsAppSeller(context: Context, productName: String) {
 
     Column(Modifier.fillMaxSize().background(SoftBlue).verticalScroll(rememberScrollState()).padding(20.dp)) {
         TextButton(onClick = back) { Text("← Volver al catálogo") }
-        Card(shape = RoundedCornerShape(24.dp)) {
+        Card(colors = CardDefaults.cardColors(containerColor = PucemSurface), shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)) {
             Column(Modifier.padding(22.dp)) {
-                Box(Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFFE3EEF9)), contentAlignment = Alignment.Center) { Text("🛍", style = MaterialTheme.typography.displayLarge) }
+                Box(Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(18.dp)).background(PucemBlueLight), contentAlignment = Alignment.Center) { Text("🛍", style = MaterialTheme.typography.displayLarge) }
                 Spacer(Modifier.height(18.dp))
                 AssistChip(onClick = {}, label = { Text(product.category.name) })
                 Text(product.name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -202,6 +245,86 @@ fun openWhatsAppSeller(context: Context, productName: String) {
     }
 }
 
+@Composable fun BuyerRequestsScreen(vm: MarketViewModel, back: () -> Unit) {
+    val requests by vm.myRequests.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    var status by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) { vm.loadBuyerRequests { status = it } }
+    Column(Modifier.fillMaxSize().background(SoftBlue).verticalScroll(rememberScrollState()).padding(20.dp)) {
+        TextButton(onClick = back) { Text("← Volver al catálogo") }
+        Text("Mis compras", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Consulta el estado de las ofertas que enviaste.", color = Color.Gray)
+        Spacer(Modifier.height(16.dp))
+        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        status?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp)) }
+        if (!loading && requests.isEmpty()) EmptyBuyerRequests()
+        requests.forEach { request ->
+            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.padding(18.dp)) {
+                    Text("Solicitud #${request.id}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Producto #${request.productId}", color = PucemBlue)
+                    Text("Oferta: $ ${"%.2f".format(request.offeredPrice)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    request.message?.takeIf { it.isNotBlank() }?.let { Text("“$it”", color = Color.DarkGray) }
+                    AssistChip(onClick = {}, label = { Text("Estado: ${request.status}") }, modifier = Modifier.padding(top = 10.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable private fun EmptyBuyerRequests() {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("🛒", style = MaterialTheme.typography.displaySmall)
+            Text("Aún no tienes solicitudes", fontWeight = FontWeight.Bold)
+            Text("Cuando envíes una oferta, podrás consultarla aquí.", color = Color.Gray)
+        }
+    }
+}
+@Composable fun SellerDashboardScreen(vm: MarketViewModel, back: () -> Unit) {
+    val products by vm.myProducts.collectAsStateWithLifecycle()
+    val requests by vm.receivedRequests.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    var status by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) { vm.loadSellerDashboard { status = it } }
+    val productsById = remember(products) { products.associateBy { it.id } }
+
+    Column(Modifier.fillMaxSize().background(SoftBlue).verticalScroll(rememberScrollState()).padding(20.dp)) {
+        TextButton(onClick = back) { Text("← Volver al catálogo") }
+        Text("Mis ventas", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Revisa y responde las ofertas que recibes.", color = Color.Gray)
+        Spacer(Modifier.height(16.dp))
+        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        status?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp)) }
+        if (!loading && products.isEmpty()) EmptySales()
+        requests.filter { it.status == "PENDING" }.forEach { request ->
+            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.padding(18.dp)) {
+                    Text(productsById[request.productId]?.name ?: "Producto #${request.productId}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Oferta de ${request.buyerUsername}", color = PucemBlue)
+                    Text("$ ${"%.2f".format(request.offeredPrice)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    request.message?.takeIf { it.isNotBlank() }?.let { Text("“$it”", color = Color.DarkGray) }
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedButton(onClick = { vm.respondToRequest(request.id, false) { status = it ?: "Oferta rechazada" } }, modifier = Modifier.weight(1f)) { Text("Rechazar") }
+                        Button(onClick = { vm.respondToRequest(request.id, true) { status = it ?: "Oferta aceptada" } }, modifier = Modifier.weight(1f)) { Text("Aceptar") }
+                    }
+                }
+            }
+        }
+        if (!loading && products.isNotEmpty() && requests.none { it.status == "PENDING" }) EmptySales()
+    }
+}
+
+@Composable private fun EmptySales() {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("📬", style = MaterialTheme.typography.displaySmall)
+            Text("No tienes ofertas pendientes", fontWeight = FontWeight.Bold)
+            Text("Las solicitudes de compra de tus productos aparecerán aquí.", color = Color.Gray)
+        }
+    }
+}
 @Composable fun PublishScreen(vm: MarketViewModel, back: () -> Unit, done: () -> Unit) {
     val categories by vm.categories.collectAsStateWithLifecycle()
     var name by remember { mutableStateOf("") }
@@ -215,7 +338,7 @@ fun openWhatsAppSeller(context: Context, productName: String) {
         Text("Publica lo que ya no usas", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text("Tu publicación será visible para toda la comunidad PUCE.", color = Color.Gray)
         Spacer(Modifier.height(20.dp))
-        Card(shape = RoundedCornerShape(24.dp)) {
+        Card(colors = CardDefaults.cardColors(containerColor = PucemSurface), shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(name, { name = it }, label = { Text("Nombre del producto") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(description, { description = it }, label = { Text("Descripción") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
@@ -235,30 +358,57 @@ fun openWhatsAppSeller(context: Context, productName: String) {
     }
 }
 
-@Composable fun LoginScreen(store: TokenStore, vm: MarketViewModel, back: () -> Unit, done: () -> Unit) {
+@Composable fun LoginScreen(store: TokenStore, vm: MarketViewModel, back: () -> Unit, done: () -> Unit, onLogout: () -> Unit) {
     var token by remember { mutableStateOf("") }
     var status by remember { mutableStateOf<String?>(null) }
     val loading by vm.loading.collectAsStateWithLifecycle()
+    val roles = store.roles()
+    val activeSession = !store.token().isNullOrBlank()
+    val profile = when {
+        "SELLER" in roles -> "Vendedor"
+        "BUYER" in roles -> "Comprador"
+        else -> "Usuario autenticado"
+    }
 
     Column(Modifier.fillMaxSize().background(SoftBlue).padding(24.dp), verticalArrangement = Arrangement.Center) {
         Card(shape = RoundedCornerShape(28.dp)) {
             Column(Modifier.padding(26.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("🔐", style = MaterialTheme.typography.displayMedium)
-                Text("Bienvenido a PUCE Market", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("Ingresa con tu sesión verificada por AWS Cognito.", color = Color.Gray)
-                Spacer(Modifier.height(20.dp))
-                OutlinedTextField(token, { token = it; status = null }, label = { Text("Access token de Cognito") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), minLines = 3)
-                status?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
-                Spacer(Modifier.height(14.dp))
-                Button(
-                    onClick = { if (token.isBlank()) status = "Pega tu access_token de Cognito." else vm.validateAndSaveSession(token, store) { error -> if (error == null) done() else status = error } },
-                    enabled = !loading,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp) else Text("Iniciar sesión")
+                Text(if (activeSession) "✓" else "🔐", style = MaterialTheme.typography.displayMedium)
+                Text(if (activeSession) "Sesión iniciada" else "Bienvenido a PUCE Market", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                if (activeSession) {
+                    Spacer(Modifier.height(8.dp))
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("Perfil activo: $profile") },
+                        colors = AssistChipDefaults.assistChipColors(containerColor = if ("SELLER" in roles) Color(0xFFFFE6A5) else Color(0xFFDDEEFF)),
+                    )
+                    Text(
+                        if ("SELLER" in roles) "Puedes publicar productos y administrar las ofertas recibidas."
+                        else "Puedes explorar productos y enviar solicitudes de compra.",
+                        color = Color.Gray,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                    Spacer(Modifier.height(20.dp))
+                    OutlinedButton(onClick = { store.clear(); status = null; onLogout() }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+                        Text("Cerrar sesión")
+                    }
+                    TextButton(onClick = back) { Text("Volver al catálogo") }
+                } else {
+                    Text("Ingresa con tu sesión verificada por AWS Cognito.", color = Color.Gray)
+                    Spacer(Modifier.height(20.dp))
+                    OutlinedTextField(token, { token = it; status = null }, label = { Text("Access token de Cognito") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), minLines = 3)
+                    status?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
+                    Spacer(Modifier.height(14.dp))
+                    Button(
+                        onClick = { if (token.isBlank()) status = "Pega tu access_token de Cognito." else vm.validateAndSaveSession(token, store) { error -> if (error == null) done() else status = error } },
+                        enabled = !loading,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp) else Text("Iniciar sesión")
+                    }
+                    TextButton(onClick = back) { Text("Volver al catálogo") }
                 }
-                TextButton(onClick = back) { Text("Volver al catálogo") }
             }
         }
     }

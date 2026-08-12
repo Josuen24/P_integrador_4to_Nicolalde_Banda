@@ -41,3 +41,7 @@ data class BuyerContact(
     val buyerUsername: String,
     val whatsappUrl: String
 )
+data class SessionResponse(
+    val username: String,
+    val roles: List<String>,
+)
