@@ -9,29 +9,45 @@ import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
+import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 class SecurityConfig(
+    private val cognitoJwtAuthenticationConverter: CognitoJwtAuthenticationConverter,
     private val authenticationEntryPoint: RestAuthenticationEntryPoint,
-    private val accessDeniedHandler: RestAccessDeniedHandler,
+    private val accessDeniedHandler: RestAccessDeniedHandler
 ) {
+
     @Bean
-    fun securityFilterChain(http: HttpSecurity): SecurityFilterChain = http
-        .csrf { it.disable() }
-        .authorizeHttpRequests {
-            it.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/actuator/health").permitAll()
-            it.requestMatchers(HttpMethod.GET, "/api/categories", "/api/products", "/api/products/search", "/api/products/*").permitAll()
-            it.anyRequest().authenticated()
-        }
-        .exceptionHandling {
-            it.authenticationEntryPoint(authenticationEntryPoint)
-            it.accessDeniedHandler(accessDeniedHandler)
-        }
-        .oauth2ResourceServer { resourceServer ->
-            resourceServer.jwt { jwt -> jwt.jwtAuthenticationConverter(CognitoJwtAuthenticationConverter()) }
-        }
-        .build()
+    fun filterChain(http: HttpSecurity): SecurityFilterChain {
+        http
+            .csrf { it.disable() }
+            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+            .exceptionHandling {
+                it.authenticationEntryPoint(authenticationEntryPoint)
+                it.accessDeniedHandler(accessDeniedHandler)
+            }
+            .authorizeHttpRequests { auth ->
+                auth
+                    .requestMatchers(
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/actuator/health"
+                    ).permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                    .anyRequest().authenticated()
+            }
+            .oauth2ResourceServer { oauth2 ->
+                oauth2.jwt { jwt ->
+                    jwt.jwtAuthenticationConverter(cognitoJwtAuthenticationConverter)
+                }
+            }
+
+        return http.build()
+    }
 }
