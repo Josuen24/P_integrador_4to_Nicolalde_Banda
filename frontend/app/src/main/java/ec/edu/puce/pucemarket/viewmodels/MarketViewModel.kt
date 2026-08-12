@@ -50,7 +50,7 @@ class MarketViewModel(private val api: ApiService) : ViewModel() {
             _myRequests.value = api.myRequests()
             done(null)
         } catch (e: Exception) {
-            done("No se pudieron cargar tus compras. Verifica la sesión y que el backend esté iniciado.")
+            done("No se pudieron cargar tus solicitudes. Inicia sesión como comprador.")
         } finally { _loading.value = false }
     }
     fun loadSellerDashboard(done: (String?) -> Unit = {}) = viewModelScope.launch {
@@ -61,7 +61,7 @@ class MarketViewModel(private val api: ApiService) : ViewModel() {
             _receivedRequests.value = sellerProducts.flatMap { api.receivedRequests(it.id) }
             done(null)
         } catch (e: Exception) {
-            done("No se pudieron cargar tus ventas. Verifica la sesión y que el backend esté iniciado.")
+            done("No se pudieron cargar tus ofertas. Inicia sesión como vendedor.")
         } finally { _loading.value = false }
     }
 
