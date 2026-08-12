@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
                 loggedIn = loggedIn,
                 onHome = { page = "catalog" },
                 onPublish = { page = if (loggedIn) "publish" else "login" },
+                onSales = { page = if (loggedIn) "sales" else "login" },
                 onSession = { page = "login" }
             )
         }
@@ -74,6 +75,7 @@ class MainActivity : ComponentActivity() {
             when (page) {
                 "login" -> LoginScreen(store, vm, back = { page = "catalog" }) { sessionToken = store.token(); page = "catalog" }
                 "publish" -> PublishScreen(vm, back = { page = "catalog" }) { page = "catalog" }
+                "sales" -> SellerDashboardScreen(vm, back = { page = "catalog" })
                 "detail" -> selected?.let { DetailScreen(it, vm) { page = "catalog" } }
                 else -> CatalogScreen(vm, loggedIn, { page = "login" }, { page = "publish" }) { selected = it; page = "detail" }
             }
@@ -81,14 +83,14 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable private fun MarketNavigationBar(page: String, loggedIn: Boolean, onHome: () -> Unit, onPublish: () -> Unit, onSession: () -> Unit) {
+@Composable private fun MarketNavigationBar(page: String, loggedIn: Boolean, onHome: () -> Unit, onPublish: () -> Unit, onSales: () -> Unit, onSession: () -> Unit) {
     NavigationBar {
         NavigationBarItem(selected = page == "catalog" || page == "detail", onClick = onHome, icon = { Text("⌂") }, label = { Text("Inicio") })
         NavigationBarItem(selected = page == "publish", onClick = onPublish, icon = { Text("+") }, label = { Text("Publicar") })
+        NavigationBarItem(selected = page == "sales", onClick = onSales, icon = { Text("▣") }, label = { Text("Mis ventas") })
         NavigationBarItem(selected = page == "login", onClick = onSession, icon = { Text("◉") }, label = { Text(if (loggedIn) "Sesión" else "Ingresar") })
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun CatalogScreen(vm: MarketViewModel, loggedIn: Boolean, onLogin: () -> Unit, onPublish: () -> Unit, onProduct: (Product) -> Unit) {
     val products by vm.products.collectAsStateWithLifecycle()
@@ -202,6 +204,50 @@ fun openWhatsAppSeller(context: Context, productName: String) {
     }
 }
 
+@Composable fun SellerDashboardScreen(vm: MarketViewModel, back: () -> Unit) {
+    val products by vm.myProducts.collectAsStateWithLifecycle()
+    val requests by vm.receivedRequests.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    var status by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) { vm.loadSellerDashboard { status = it } }
+    val productsById = remember(products) { products.associateBy { it.id } }
+
+    Column(Modifier.fillMaxSize().background(SoftBlue).verticalScroll(rememberScrollState()).padding(20.dp)) {
+        TextButton(onClick = back) { Text("← Volver al catálogo") }
+        Text("Mis ventas", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Revisa y responde las ofertas que recibes.", color = Color.Gray)
+        Spacer(Modifier.height(16.dp))
+        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        status?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp)) }
+        if (!loading && products.isEmpty()) EmptySales()
+        requests.filter { it.status == "PENDING" }.forEach { request ->
+            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.padding(18.dp)) {
+                    Text(productsById[request.productId]?.name ?: "Producto #${request.productId}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Oferta de ${request.buyerUsername}", color = PucemBlue)
+                    Text("$ ${"%.2f".format(request.offeredPrice)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    request.message?.takeIf { it.isNotBlank() }?.let { Text("“$it”", color = Color.DarkGray) }
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedButton(onClick = { vm.respondToRequest(request.id, false) { status = it ?: "Oferta rechazada" } }, modifier = Modifier.weight(1f)) { Text("Rechazar") }
+                        Button(onClick = { vm.respondToRequest(request.id, true) { status = it ?: "Oferta aceptada" } }, modifier = Modifier.weight(1f)) { Text("Aceptar") }
+                    }
+                }
+            }
+        }
+        if (!loading && products.isNotEmpty() && requests.none { it.status == "PENDING" }) EmptySales()
+    }
+}
+
+@Composable private fun EmptySales() {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("📬", style = MaterialTheme.typography.displaySmall)
+            Text("No tienes ofertas pendientes", fontWeight = FontWeight.Bold)
+            Text("Las solicitudes de compra de tus productos aparecerán aquí.", color = Color.Gray)
+        }
+    }
+}
 @Composable fun PublishScreen(vm: MarketViewModel, back: () -> Unit, done: () -> Unit) {
     val categories by vm.categories.collectAsStateWithLifecycle()
     var name by remember { mutableStateOf("") }

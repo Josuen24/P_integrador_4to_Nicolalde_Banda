@@ -19,6 +19,10 @@ class MarketViewModel(private val api: ApiService) : ViewModel() {
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
+    private val _myProducts = MutableStateFlow<List<Product>>(emptyList())
+    val myProducts: StateFlow<List<Product>> = _myProducts.asStateFlow()
+    private val _receivedRequests = MutableStateFlow<List<PurchaseRequest>>(emptyList())
+    val receivedRequests: StateFlow<List<PurchaseRequest>> = _receivedRequests.asStateFlow()
 
     init { refresh() }
     fun refresh() = run { _loading.value = true; _error.value = null; viewModelScope.launch {
@@ -37,6 +41,24 @@ class MarketViewModel(private val api: ApiService) : ViewModel() {
     }
     fun request(productId: Long, payload: CreateRequestPayload, done: (String?) -> Unit) = viewModelScope.launch {
         try { api.createRequest(productId, payload); done(null) } catch (e: Exception) { done(e.message ?: "No se pudo enviar la solicitud") }
+    }
+    fun loadSellerDashboard(done: (String?) -> Unit = {}) = viewModelScope.launch {
+        _loading.value = true
+        try {
+            val sellerProducts = api.myProducts()
+            _myProducts.value = sellerProducts
+            _receivedRequests.value = sellerProducts.flatMap { api.receivedRequests(it.id) }
+            done(null)
+        } catch (e: Exception) {
+            done("No se pudieron cargar tus ofertas. Inicia sesión como vendedor.")
+        } finally { _loading.value = false }
+    }
+
+    fun respondToRequest(requestId: Long, accept: Boolean, done: (String?) -> Unit) = viewModelScope.launch {
+        try {
+            if (accept) api.acceptRequest(requestId) else api.rejectRequest(requestId)
+            loadSellerDashboard(done)
+        } catch (e: Exception) { done("No se pudo actualizar la oferta.") }
     }
     fun validateAndSaveSession(token: String, tokenStore: TokenStore, done: (String?) -> Unit) = viewModelScope.launch {
         _loading.value = true
