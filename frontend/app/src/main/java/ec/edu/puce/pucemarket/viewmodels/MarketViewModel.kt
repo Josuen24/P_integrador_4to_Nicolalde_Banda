@@ -19,10 +19,6 @@ class MarketViewModel(private val api: ApiService) : ViewModel() {
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
-    private val _conversations = MutableStateFlow<List<Conversation>>(emptyList())
-    val conversations: StateFlow<List<Conversation>> = _conversations.asStateFlow()
-    private val _messages = MutableStateFlow<List<Message>>(emptyList())
-    val messages: StateFlow<List<Message>> = _messages.asStateFlow()
 
     init { refresh() }
     fun refresh() = run { _loading.value = true; _error.value = null; viewModelScope.launch {
@@ -42,14 +38,11 @@ class MarketViewModel(private val api: ApiService) : ViewModel() {
     fun request(productId: Long, payload: CreateRequestPayload, done: (String?) -> Unit) = viewModelScope.launch {
         try { api.createRequest(productId, payload); done(null) } catch (e: Exception) { done(e.message ?: "No se pudo enviar la solicitud") }
     }
-    fun loadConversations() = viewModelScope.launch { try { _conversations.value = api.conversations() } catch (e: Exception) { _error.value = e.message ?: "No se pudieron cargar los chats" } }
-    fun loadMessages(conversationId: Long) = viewModelScope.launch { try { _messages.value = api.messages(conversationId) } catch (e: Exception) { _error.value = e.message ?: "No se pudieron cargar los mensajes" } }
-    fun sendChatMessage(conversationId: Long, content: String) = viewModelScope.launch { if (content.isNotBlank()) try { api.sendMessage(conversationId, CreateMessagePayload(content)); loadMessages(conversationId) } catch (e: Exception) { _error.value = e.message ?: "No se pudo enviar el mensaje" } }
     fun validateAndSaveSession(token: String, tokenStore: TokenStore, done: (String?) -> Unit) = viewModelScope.launch {
         _loading.value = true
         try {
             tokenStore.save(token)
-            api.conversations()
+            api.myProducts()
             done(null)
         } catch (e: Exception) {
             tokenStore.clear()

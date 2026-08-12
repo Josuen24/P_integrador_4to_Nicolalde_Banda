@@ -20,7 +20,4 @@ interface ApiService {
     @PATCH("api/purchase-requests/{id}/reject") suspend fun rejectRequest(@Path("id") id: Long): PurchaseRequest
     @DELETE("api/purchase-requests/{id}") suspend fun cancelRequest(@Path("id") id: Long)
     @GET("api/purchase-requests/{id}/buyer-contact") suspend fun buyerContact(@Path("id") id: Long): BuyerContact
-    @GET("api/conversations/me") suspend fun conversations(): List<Conversation>
-    @GET("api/conversations/{id}/messages") suspend fun messages(@Path("id") id: Long): List<Message>
-    @POST("api/conversations/{id}/messages") suspend fun sendMessage(@Path("id") id: Long, @Body body: CreateMessagePayload): Message
 }
