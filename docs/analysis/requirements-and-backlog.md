@@ -7,9 +7,7 @@ PUCE Market permite a miembros autenticados de la comunidad universitaria public
 ## Actores
 
 - Visitante: consulta catálogo y categorías sin autenticarse.
-- BUYER: busca productos, envía solicitudes de compra y consulta sus compras.
-- SELLER: publica y administra sus productos, acepta o rechaza solicitudes de compra.
-- AWS Cognito: autentica usuarios y entrega los grupos `BUYER` y `SELLER` en el JWT.
+- Usuario autenticado: consulta productos, publica sus propios productos, envía ofertas y gestiona sus compras y ventas.`r`n- AWS Cognito: autentica a miembros de la comunidad PUCE y entrega el JWT para identificar al usuario.
 
 ## Requerimientos funcionales
 
@@ -17,11 +15,11 @@ PUCE Market permite a miembros autenticados de la comunidad universitaria public
 |---|---|---|---|
 | RF-01 | Consultar catálogo y categorías | Must | Un visitante obtiene productos disponibles y categorías sin token. |
 | RF-02 | Buscar productos | Must | El catálogo se filtra por texto y/o categoría. |
-| RF-03 | Publicar producto | Must | Un SELLER autenticado registra nombre, descripción, precio y categoría. |
+| RF-03 | Publicar producto | Must | Un usuario autenticado registra nombre, descripción, precio y categoría. |
 | RF-04 | Gestionar producto propio | Should | Un SELLER puede listar, editar, marcar vendido y eliminar únicamente sus productos. |
-| RF-05 | Enviar solicitud de compra | Must | Un BUYER puede enviar precio y mensaje de oferta sobre un producto ajeno disponible. |
-| RF-06 | Gestionar solicitudes de compra | Must | El SELLER propietario puede aceptar o rechazar las solicitudes recibidas. |
-| RF-07 | Consultar solicitudes propias | Should | BUYER consulta y cancela únicamente solicitudes pendientes propias. |
+| RF-05 | Enviar solicitud de compra | Must | Un usuario autenticado puede enviar precio y mensaje de oferta sobre un producto ajeno disponible. |
+| RF-06 | Gestionar solicitudes de compra | Must | El propietario del producto puede aceptar o rechazar las solicitudes recibidas. |
+| RF-07 | Consultar solicitudes propias | Should | El comprador consulta y cancela únicamente solicitudes pendientes propias. |
 | RF-08 | Contacto posterior | Could | Al aceptarse la compra, SELLER/BUYER obtienen el contacto verificado de la contraparte. |
 
 ## Requerimientos no funcionales
