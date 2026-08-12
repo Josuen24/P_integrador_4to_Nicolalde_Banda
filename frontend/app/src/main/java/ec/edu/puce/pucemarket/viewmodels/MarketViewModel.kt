@@ -23,6 +23,8 @@ class MarketViewModel(private val api: ApiService) : ViewModel() {
     val myProducts: StateFlow<List<Product>> = _myProducts.asStateFlow()
     private val _receivedRequests = MutableStateFlow<List<PurchaseRequest>>(emptyList())
     val receivedRequests: StateFlow<List<PurchaseRequest>> = _receivedRequests.asStateFlow()
+    private val _myRequests = MutableStateFlow<List<PurchaseRequest>>(emptyList())
+    val myRequests: StateFlow<List<PurchaseRequest>> = _myRequests.asStateFlow()
 
     init { refresh() }
     fun refresh() = run { _loading.value = true; _error.value = null; viewModelScope.launch {
@@ -41,6 +43,15 @@ class MarketViewModel(private val api: ApiService) : ViewModel() {
     }
     fun request(productId: Long, payload: CreateRequestPayload, done: (String?) -> Unit) = viewModelScope.launch {
         try { api.createRequest(productId, payload); done(null) } catch (e: Exception) { done(e.message ?: "No se pudo enviar la solicitud") }
+    }
+    fun loadBuyerRequests(done: (String?) -> Unit = {}) = viewModelScope.launch {
+        _loading.value = true
+        try {
+            _myRequests.value = api.myRequests()
+            done(null)
+        } catch (e: Exception) {
+            done("No se pudieron cargar tus solicitudes. Inicia sesión como comprador.")
+        } finally { _loading.value = false }
     }
     fun loadSellerDashboard(done: (String?) -> Unit = {}) = viewModelScope.launch {
         _loading.value = true

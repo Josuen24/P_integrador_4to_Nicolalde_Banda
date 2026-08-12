@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
     var sessionRoles by remember { mutableStateOf(store.roles()) }
     val loggedIn = !sessionToken.isNullOrBlank()
     val sellerLoggedIn = loggedIn && "SELLER" in sessionRoles
+    val buyerLoggedIn = loggedIn && "BUYER" in sessionRoles
 
     Scaffold(
         containerColor = SoftBlue,
@@ -67,9 +68,11 @@ class MainActivity : ComponentActivity() {
                 page = page,
                 loggedIn = loggedIn,
                 sellerLoggedIn = sellerLoggedIn,
+                buyerLoggedIn = buyerLoggedIn,
                 onHome = { page = "catalog" },
-                onPublish = { page = if (loggedIn) "publish" else "login" },
-                onSales = { page = if (loggedIn) "sales" else "login" },
+                onPublish = { page = if (sellerLoggedIn) "publish" else "login" },
+                onSales = { page = if (sellerLoggedIn) "sales" else "login" },
+                onRequests = { page = if (buyerLoggedIn) "requests" else "login" },
                 onSession = { page = "login" }
             )
         }
@@ -83,25 +86,27 @@ class MainActivity : ComponentActivity() {
                     done = { sessionToken = store.token(); sessionRoles = store.roles(); page = "catalog" },
                     onLogout = { sessionToken = null; sessionRoles = emptySet(); page = "catalog" },
                 )
-                "publish" -> PublishScreen(vm, back = { page = "catalog" }) { page = "catalog" }
+                "publish" -> if (sellerLoggedIn) PublishScreen(vm, back = { page = "catalog" }) { page = "catalog" } else LaunchedEffect(Unit) { page = "catalog" }
                 "sales" -> if (sellerLoggedIn) SellerDashboardScreen(vm, back = { page = "catalog" }) else LaunchedEffect(Unit) { page = "catalog" }
+                "requests" -> if (buyerLoggedIn) BuyerRequestsScreen(vm, back = { page = "catalog" }) else LaunchedEffect(Unit) { page = "catalog" }
                 "detail" -> selected?.let { DetailScreen(it, vm) { page = "catalog" } }
-                else -> CatalogScreen(vm, loggedIn, { page = "login" }, { page = "publish" }) { selected = it; page = "detail" }
+                else -> CatalogScreen(vm, loggedIn, sellerLoggedIn, buyerLoggedIn, { page = "login" }, { page = "publish" }, { page = "requests" }) { selected = it; page = "detail" }
             }
         }
     }
 }
 
-@Composable private fun MarketNavigationBar(page: String, loggedIn: Boolean, sellerLoggedIn: Boolean, onHome: () -> Unit, onPublish: () -> Unit, onSales: () -> Unit, onSession: () -> Unit) {
+@Composable private fun MarketNavigationBar(page: String, loggedIn: Boolean, sellerLoggedIn: Boolean, buyerLoggedIn: Boolean, onHome: () -> Unit, onPublish: () -> Unit, onSales: () -> Unit, onRequests: () -> Unit, onSession: () -> Unit) {
     NavigationBar {
         NavigationBarItem(selected = page == "catalog" || page == "detail", onClick = onHome, icon = { Text("⌂") }, label = { Text("Inicio") })
-        NavigationBarItem(selected = page == "publish", onClick = onPublish, icon = { Text("+") }, label = { Text("Publicar") })
+        if (sellerLoggedIn) NavigationBarItem(selected = page == "publish", onClick = onPublish, icon = { Text("+") }, label = { Text("Publicar") })
         if (sellerLoggedIn) NavigationBarItem(selected = page == "sales", onClick = onSales, icon = { Text("▣") }, label = { Text("Mis ventas") })
+        if (buyerLoggedIn) NavigationBarItem(selected = page == "requests", onClick = onRequests, icon = { Text("◌") }, label = { Text("Mis compras") })
         NavigationBarItem(selected = page == "login", onClick = onSession, icon = { Text("◉") }, label = { Text(if (loggedIn) "Sesión" else "Ingresar") })
     }
 }
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable fun CatalogScreen(vm: MarketViewModel, loggedIn: Boolean, onLogin: () -> Unit, onPublish: () -> Unit, onProduct: (Product) -> Unit) {
+@Composable fun CatalogScreen(vm: MarketViewModel, loggedIn: Boolean, sellerLoggedIn: Boolean, buyerLoggedIn: Boolean, onLogin: () -> Unit, onPublish: () -> Unit, onRequests: () -> Unit, onProduct: (Product) -> Unit) {
     val products by vm.products.collectAsStateWithLifecycle()
     val loading by vm.loading.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
@@ -112,12 +117,12 @@ class MainActivity : ComponentActivity() {
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("PUCE Market", fontWeight = FontWeight.Bold); Text("Compra y vende en tu comunidad", style = MaterialTheme.typography.labelSmall) } },
-                actions = { TextButton(onClick = if (loggedIn) onPublish else onLogin) { Text(if (loggedIn) "Vender" else "Ingresar", fontWeight = FontWeight.Bold) } }
+                actions = { TextButton(onClick = when { sellerLoggedIn -> onPublish; buyerLoggedIn -> onRequests; else -> onLogin }) { Text(when { sellerLoggedIn -> "Vender"; buyerLoggedIn -> "Mis compras"; else -> "Ingresar" }, fontWeight = FontWeight.Bold) } }
             )
         }
     ) { padding ->
         LazyColumn(contentPadding = PaddingValues(16.dp), modifier = Modifier.padding(padding), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { HeroCard(products.size, loggedIn, onLogin, onPublish) }
+            item { HeroCard(products.size, loggedIn, sellerLoggedIn, buyerLoggedIn, onLogin, onPublish, onRequests) }
             item { OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text("¿Qué estás buscando?") }, placeholder = { Text("Ej.: Calculadora, libros, audífonos") }, leadingIcon = { Text("⌕", style = MaterialTheme.typography.headlineSmall) }, trailingIcon = { TextButton(onClick = { vm.search(query) }) { Text("Buscar") } }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) }
             if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             error?.let { message -> item { AssistChip(onClick = vm::refresh, label = { Text("$message · Reintentar") }, colors = AssistChipDefaults.assistChipColors(containerColor = MaterialTheme.colorScheme.errorContainer)) } }
@@ -128,12 +133,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable private fun HeroCard(count: Int, loggedIn: Boolean, onLogin: () -> Unit, onPublish: () -> Unit) {
+@Composable private fun HeroCard(count: Int, loggedIn: Boolean, sellerLoggedIn: Boolean, buyerLoggedIn: Boolean, onLogin: () -> Unit, onPublish: () -> Unit, onRequests: () -> Unit) {
     Card(colors = CardDefaults.cardColors(containerColor = PucemBlue), shape = RoundedCornerShape(24.dp)) {
         Column(Modifier.padding(22.dp)) {
             Text("Todo lo que necesitas, cerca de ti", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp)); Text("Explora $count publicaciones de la comunidad PUCE.", color = Color(0xFFD8E8F8))
-            Spacer(Modifier.height(18.dp)); Button(onClick = if (loggedIn) onPublish else onLogin, colors = ButtonDefaults.buttonColors(containerColor = PucemGold, contentColor = Color(0xFF2D2100))) { Text(if (loggedIn) "Publicar un producto" else "Iniciar sesión", fontWeight = FontWeight.Bold) }
+            Spacer(Modifier.height(18.dp)); Button(onClick = when { sellerLoggedIn -> onPublish; buyerLoggedIn -> onRequests; else -> onLogin }, colors = ButtonDefaults.buttonColors(containerColor = PucemGold, contentColor = Color(0xFF2D2100))) { Text(when { sellerLoggedIn -> "Publicar un producto"; buyerLoggedIn -> "Ver mis solicitudes"; else -> "Iniciar sesión" }, fontWeight = FontWeight.Bold) }
         }
     }
 }
@@ -213,6 +218,42 @@ fun openWhatsAppSeller(context: Context, productName: String) {
     }
 }
 
+@Composable fun BuyerRequestsScreen(vm: MarketViewModel, back: () -> Unit) {
+    val requests by vm.myRequests.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    var status by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) { vm.loadBuyerRequests { status = it } }
+    Column(Modifier.fillMaxSize().background(SoftBlue).verticalScroll(rememberScrollState()).padding(20.dp)) {
+        TextButton(onClick = back) { Text("← Volver al catálogo") }
+        Text("Mis compras", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Consulta el estado de las ofertas que enviaste.", color = Color.Gray)
+        Spacer(Modifier.height(16.dp))
+        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        status?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp)) }
+        if (!loading && requests.isEmpty()) EmptyBuyerRequests()
+        requests.forEach { request ->
+            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.padding(18.dp)) {
+                    Text("Solicitud #${request.id}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Producto #${request.productId}", color = PucemBlue)
+                    Text("Oferta: $ ${"%.2f".format(request.offeredPrice)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    request.message?.takeIf { it.isNotBlank() }?.let { Text("“$it”", color = Color.DarkGray) }
+                    AssistChip(onClick = {}, label = { Text("Estado: ${request.status}") }, modifier = Modifier.padding(top = 10.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable private fun EmptyBuyerRequests() {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("🛒", style = MaterialTheme.typography.displaySmall)
+            Text("Aún no tienes solicitudes", fontWeight = FontWeight.Bold)
+            Text("Cuando envíes una oferta, podrás consultarla aquí.", color = Color.Gray)
+        }
+    }
+}
 @Composable fun SellerDashboardScreen(vm: MarketViewModel, back: () -> Unit) {
     val products by vm.myProducts.collectAsStateWithLifecycle()
     val requests by vm.receivedRequests.collectAsStateWithLifecycle()
