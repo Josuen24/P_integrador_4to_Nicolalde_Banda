@@ -41,12 +41,12 @@ class ProductController(
     fun getProduct(@PathVariable productId: Long): ProductResponse = productService.getProduct(productId)
 
     @GetMapping("/me")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('SELLER')")
     fun getMyProducts(@AuthenticationPrincipal jwt: Jwt): List<ProductResponse> =
         productService.getMyProducts(currentUser.username(jwt))
 
     @PostMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('SELLER')")
     fun createProduct(
         @Valid @RequestBody request: CreateProductRequest,
         @AuthenticationPrincipal jwt: Jwt,
@@ -55,7 +55,7 @@ class ProductController(
         .body(productService.createProduct(request, currentUser.username(jwt)))
 
     @PutMapping("/{productId}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('SELLER')")
     fun updateProduct(
         @PathVariable productId: Long,
         @Valid @RequestBody request: UpdateProductRequest,
@@ -63,14 +63,14 @@ class ProductController(
     ): ProductResponse = productService.updateProduct(productId, request, currentUser.username(jwt))
 
     @DeleteMapping("/{productId}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('SELLER')")
     fun deleteProduct(@PathVariable productId: Long, @AuthenticationPrincipal jwt: Jwt): ResponseEntity<Void> {
         productService.deleteProduct(productId, currentUser.username(jwt))
         return ResponseEntity.noContent().build()
     }
 
     @PatchMapping("/{productId}/sold")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('SELLER')")
     fun markAsSold(@PathVariable productId: Long, @AuthenticationPrincipal jwt: Jwt): ProductResponse =
         productService.markAsSold(productId, currentUser.username(jwt))
 }

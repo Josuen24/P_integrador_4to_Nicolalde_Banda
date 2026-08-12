@@ -29,7 +29,7 @@ class PurchaseRequestController(
     private val currentUser: CurrentUser,
 ) {
     @PostMapping("/api/products/{productId}/requests")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('BUYER')")
     fun createRequest(
         @PathVariable productId: Long,
         @Valid @RequestBody request: CreatePurchaseRequest,
@@ -40,35 +40,35 @@ class PurchaseRequestController(
     }
 
     @GetMapping("/api/purchase-requests/me")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('BUYER')")
     fun getMyRequests(@AuthenticationPrincipal jwt: Jwt): List<PurchaseRequestResponse> =
         purchaseRequestService.getMyRequests(currentUser.username(jwt))
 
     @DeleteMapping("/api/purchase-requests/{requestId}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('BUYER')")
     fun cancelRequest(@PathVariable requestId: Long, @AuthenticationPrincipal jwt: Jwt): ResponseEntity<Void> {
         purchaseRequestService.cancelRequest(requestId, currentUser.username(jwt))
         return ResponseEntity.noContent().build()
     }
 
     @GetMapping("/api/products/{productId}/requests")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('SELLER')")
     fun getReceivedRequests(@PathVariable productId: Long, @AuthenticationPrincipal jwt: Jwt): List<PurchaseRequestResponse> =
         purchaseRequestService.getReceivedRequests(productId, currentUser.username(jwt))
 
     @PatchMapping("/api/purchase-requests/{requestId}/accept")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('SELLER')")
     fun acceptRequest(@PathVariable requestId: Long, @AuthenticationPrincipal jwt: Jwt): PurchaseRequestResponse {
         return purchaseRequestService.acceptRequest(requestId, currentUser.username(jwt))
     }
 
     @PatchMapping("/api/purchase-requests/{requestId}/reject")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('SELLER')")
     fun rejectRequest(@PathVariable requestId: Long, @AuthenticationPrincipal jwt: Jwt): PurchaseRequestResponse =
         purchaseRequestService.rejectRequest(requestId, currentUser.username(jwt))
 
     @GetMapping("/api/purchase-requests/{requestId}/buyer-contact")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('SELLER')")
     fun getBuyerContact(@PathVariable requestId: Long, @AuthenticationPrincipal jwt: Jwt): BuyerContactResponse =
         buyerContactService.getBuyerContact(requestId, currentUser.username(jwt))
 }
