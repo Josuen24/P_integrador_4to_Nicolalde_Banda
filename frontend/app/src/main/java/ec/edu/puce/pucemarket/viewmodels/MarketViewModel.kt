@@ -63,6 +63,8 @@ class MarketViewModel(private val api: ApiService) : ViewModel() {
     fun validateAndSaveSession(token: String, tokenStore: TokenStore, done: (String?) -> Unit) = viewModelScope.launch {
         _loading.value = true
         try {
+            // El interceptor obtiene el JWT desde TokenStore, por eso se guarda antes de validar.
+            tokenStore.save(token, emptyList())
             val session = api.session()
             tokenStore.save(token, session.roles)
             done(null)
