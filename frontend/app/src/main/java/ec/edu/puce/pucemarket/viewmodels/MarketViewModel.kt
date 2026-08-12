@@ -63,8 +63,8 @@ class MarketViewModel(private val api: ApiService) : ViewModel() {
     fun validateAndSaveSession(token: String, tokenStore: TokenStore, done: (String?) -> Unit) = viewModelScope.launch {
         _loading.value = true
         try {
-            tokenStore.save(token)
-            api.session()
+            val session = api.session()
+            tokenStore.save(token, session.roles)
             done(null)
         } catch (e: Exception) {
             tokenStore.clear()

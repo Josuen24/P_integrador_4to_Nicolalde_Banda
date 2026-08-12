@@ -56,7 +56,9 @@ class MainActivity : ComponentActivity() {
     var page by remember { mutableStateOf("catalog") }
     var selected by remember { mutableStateOf<Product?>(null) }
     var sessionToken by remember { mutableStateOf(store.token()) }
+    var sessionRoles by remember { mutableStateOf(store.roles()) }
     val loggedIn = !sessionToken.isNullOrBlank()
+    val sellerLoggedIn = loggedIn && "SELLER" in sessionRoles
 
     Scaffold(
         containerColor = SoftBlue,
@@ -64,6 +66,7 @@ class MainActivity : ComponentActivity() {
             MarketNavigationBar(
                 page = page,
                 loggedIn = loggedIn,
+                sellerLoggedIn = sellerLoggedIn,
                 onHome = { page = "catalog" },
                 onPublish = { page = if (loggedIn) "publish" else "login" },
                 onSales = { page = if (loggedIn) "sales" else "login" },
@@ -73,9 +76,9 @@ class MainActivity : ComponentActivity() {
     ) { contentPadding ->
         Box(Modifier.padding(contentPadding)) {
             when (page) {
-                "login" -> LoginScreen(store, vm, back = { page = "catalog" }) { sessionToken = store.token(); page = "catalog" }
+                "login" -> LoginScreen(store, vm, back = { page = "catalog" }) { sessionToken = store.token(); sessionRoles = store.roles(); page = "catalog" }
                 "publish" -> PublishScreen(vm, back = { page = "catalog" }) { page = "catalog" }
-                "sales" -> SellerDashboardScreen(vm, back = { page = "catalog" })
+                "sales" -> if (sellerLoggedIn) SellerDashboardScreen(vm, back = { page = "catalog" }) else LaunchedEffect(Unit) { page = "catalog" }
                 "detail" -> selected?.let { DetailScreen(it, vm) { page = "catalog" } }
                 else -> CatalogScreen(vm, loggedIn, { page = "login" }, { page = "publish" }) { selected = it; page = "detail" }
             }
@@ -83,11 +86,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Composable private fun MarketNavigationBar(page: String, loggedIn: Boolean, onHome: () -> Unit, onPublish: () -> Unit, onSales: () -> Unit, onSession: () -> Unit) {
+@Composable private fun MarketNavigationBar(page: String, loggedIn: Boolean, sellerLoggedIn: Boolean, onHome: () -> Unit, onPublish: () -> Unit, onSales: () -> Unit, onSession: () -> Unit) {
     NavigationBar {
         NavigationBarItem(selected = page == "catalog" || page == "detail", onClick = onHome, icon = { Text("⌂") }, label = { Text("Inicio") })
         NavigationBarItem(selected = page == "publish", onClick = onPublish, icon = { Text("+") }, label = { Text("Publicar") })
-        NavigationBarItem(selected = page == "sales", onClick = onSales, icon = { Text("▣") }, label = { Text("Mis ventas") })
+        if (sellerLoggedIn) NavigationBarItem(selected = page == "sales", onClick = onSales, icon = { Text("▣") }, label = { Text("Mis ventas") })
         NavigationBarItem(selected = page == "login", onClick = onSession, icon = { Text("◉") }, label = { Text(if (loggedIn) "Sesión" else "Ingresar") })
     }
 }
