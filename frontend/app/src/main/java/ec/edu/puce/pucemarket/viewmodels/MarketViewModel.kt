@@ -42,11 +42,11 @@ class MarketViewModel(private val api: ApiService) : ViewModel() {
         _loading.value = true
         try {
             tokenStore.save(token)
-            api.myProducts()
+            api.session()
             done(null)
         } catch (e: Exception) {
             tokenStore.clear()
-            done("No se pudo validar la sesión. Usa el access_token completo de Cognito.")
+            done("No se pudo validar la sesión. Verifica que pegaste el access_token completo de Cognito.")
         } finally { _loading.value = false }
     }
 }
