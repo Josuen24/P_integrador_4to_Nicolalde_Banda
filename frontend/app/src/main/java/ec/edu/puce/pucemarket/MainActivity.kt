@@ -76,10 +76,9 @@ class MainActivity : ComponentActivity() {
     var page by remember { mutableStateOf("catalog") }
     var selected by remember { mutableStateOf<Product?>(null) }
     var sessionToken by remember { mutableStateOf(store.token()) }
-    var sessionRoles by remember { mutableStateOf(store.roles()) }
     val loggedIn = !sessionToken.isNullOrBlank()
-    val sellerLoggedIn = loggedIn && "SELLER" in sessionRoles
-    val buyerLoggedIn = loggedIn && "BUYER" in sessionRoles
+    val sellerLoggedIn = loggedIn
+    val buyerLoggedIn = loggedIn
 
     Scaffold(
         containerColor = SoftBlue,
@@ -103,8 +102,8 @@ class MainActivity : ComponentActivity() {
                     store = store,
                     vm = vm,
                     back = { page = "catalog" },
-                    done = { sessionToken = store.token(); sessionRoles = store.roles(); page = "catalog" },
-                    onLogout = { sessionToken = null; sessionRoles = emptySet(); page = "catalog" },
+                    done = { sessionToken = store.token(); page = "catalog" },
+                    onLogout = { sessionToken = null; page = "catalog" },
                 )
                 "publish" -> if (sellerLoggedIn) PublishScreen(vm, back = { page = "catalog" }) { page = "catalog" } else LaunchedEffect(Unit) { page = "catalog" }
                 "sales" -> if (sellerLoggedIn) SellerDashboardScreen(vm, back = { page = "catalog" }) else LaunchedEffect(Unit) { page = "catalog" }
@@ -364,11 +363,7 @@ fun openWhatsAppSeller(context: Context, productName: String) {
     val loading by vm.loading.collectAsStateWithLifecycle()
     val roles = store.roles()
     val activeSession = !store.token().isNullOrBlank()
-    val profile = when {
-        "SELLER" in roles -> "Vendedor"
-        "BUYER" in roles -> "Comprador"
-        else -> "Usuario autenticado"
-    }
+    val profile = if (roles.isEmpty()) "Usuario autenticado" else "Comprador y vendedor"
 
     Column(Modifier.fillMaxSize().background(SoftBlue).padding(24.dp), verticalArrangement = Arrangement.Center) {
         Card(shape = RoundedCornerShape(28.dp)) {
@@ -380,11 +375,10 @@ fun openWhatsAppSeller(context: Context, productName: String) {
                     AssistChip(
                         onClick = {},
                         label = { Text("Perfil activo: $profile") },
-                        colors = AssistChipDefaults.assistChipColors(containerColor = if ("SELLER" in roles) Color(0xFFFFE6A5) else Color(0xFFDDEEFF)),
+                        colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFFFFE6A5)),
                     )
                     Text(
-                        if ("SELLER" in roles) "Puedes publicar productos y administrar las ofertas recibidas."
-                        else "Puedes explorar productos y enviar solicitudes de compra.",
+                        "Puedes publicar, comprar, enviar ofertas y administrar tus productos y solicitudes.",
                         color = Color.Gray,
                         modifier = Modifier.padding(top = 12.dp),
                     )
