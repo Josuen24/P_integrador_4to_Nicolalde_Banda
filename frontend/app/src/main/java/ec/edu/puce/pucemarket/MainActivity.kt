@@ -76,7 +76,13 @@ class MainActivity : ComponentActivity() {
     ) { contentPadding ->
         Box(Modifier.padding(contentPadding)) {
             when (page) {
-                "login" -> LoginScreen(store, vm, back = { page = "catalog" }) { sessionToken = store.token(); sessionRoles = store.roles(); page = "catalog" }
+                "login" -> LoginScreen(
+                    store = store,
+                    vm = vm,
+                    back = { page = "catalog" },
+                    done = { sessionToken = store.token(); sessionRoles = store.roles(); page = "catalog" },
+                    onLogout = { sessionToken = null; sessionRoles = emptySet(); page = "catalog" },
+                )
                 "publish" -> PublishScreen(vm, back = { page = "catalog" }) { page = "catalog" }
                 "sales" -> if (sellerLoggedIn) SellerDashboardScreen(vm, back = { page = "catalog" }) else LaunchedEffect(Unit) { page = "catalog" }
                 "detail" -> selected?.let { DetailScreen(it, vm) { page = "catalog" } }
@@ -284,30 +290,57 @@ fun openWhatsAppSeller(context: Context, productName: String) {
     }
 }
 
-@Composable fun LoginScreen(store: TokenStore, vm: MarketViewModel, back: () -> Unit, done: () -> Unit) {
+@Composable fun LoginScreen(store: TokenStore, vm: MarketViewModel, back: () -> Unit, done: () -> Unit, onLogout: () -> Unit) {
     var token by remember { mutableStateOf("") }
     var status by remember { mutableStateOf<String?>(null) }
     val loading by vm.loading.collectAsStateWithLifecycle()
+    val roles = store.roles()
+    val activeSession = !store.token().isNullOrBlank()
+    val profile = when {
+        "SELLER" in roles -> "Vendedor"
+        "BUYER" in roles -> "Comprador"
+        else -> "Usuario autenticado"
+    }
 
     Column(Modifier.fillMaxSize().background(SoftBlue).padding(24.dp), verticalArrangement = Arrangement.Center) {
         Card(shape = RoundedCornerShape(28.dp)) {
             Column(Modifier.padding(26.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("🔐", style = MaterialTheme.typography.displayMedium)
-                Text("Bienvenido a PUCE Market", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("Ingresa con tu sesión verificada por AWS Cognito.", color = Color.Gray)
-                Spacer(Modifier.height(20.dp))
-                OutlinedTextField(token, { token = it; status = null }, label = { Text("Access token de Cognito") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), minLines = 3)
-                status?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
-                Spacer(Modifier.height(14.dp))
-                Button(
-                    onClick = { if (token.isBlank()) status = "Pega tu access_token de Cognito." else vm.validateAndSaveSession(token, store) { error -> if (error == null) done() else status = error } },
-                    enabled = !loading,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp) else Text("Iniciar sesión")
+                Text(if (activeSession) "✓" else "🔐", style = MaterialTheme.typography.displayMedium)
+                Text(if (activeSession) "Sesión iniciada" else "Bienvenido a PUCE Market", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                if (activeSession) {
+                    Spacer(Modifier.height(8.dp))
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("Perfil activo: $profile") },
+                        colors = AssistChipDefaults.assistChipColors(containerColor = if ("SELLER" in roles) Color(0xFFFFE6A5) else Color(0xFFDDEEFF)),
+                    )
+                    Text(
+                        if ("SELLER" in roles) "Puedes publicar productos y administrar las ofertas recibidas."
+                        else "Puedes explorar productos y enviar solicitudes de compra.",
+                        color = Color.Gray,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                    Spacer(Modifier.height(20.dp))
+                    OutlinedButton(onClick = { store.clear(); status = null; onLogout() }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+                        Text("Cerrar sesión")
+                    }
+                    TextButton(onClick = back) { Text("Volver al catálogo") }
+                } else {
+                    Text("Ingresa con tu sesión verificada por AWS Cognito.", color = Color.Gray)
+                    Spacer(Modifier.height(20.dp))
+                    OutlinedTextField(token, { token = it; status = null }, label = { Text("Access token de Cognito") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), minLines = 3)
+                    status?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp)) }
+                    Spacer(Modifier.height(14.dp))
+                    Button(
+                        onClick = { if (token.isBlank()) status = "Pega tu access_token de Cognito." else vm.validateAndSaveSession(token, store) { error -> if (error == null) done() else status = error } },
+                        enabled = !loading,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp) else Text("Iniciar sesión")
+                    }
+                    TextButton(onClick = back) { Text("Volver al catálogo") }
                 }
-                TextButton(onClick = back) { Text("Volver al catálogo") }
             }
         }
     }
